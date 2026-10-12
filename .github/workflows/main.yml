@@ -1,0 +1,80 @@
+name: Windows RDP
+
+on:
+  workflow_dispatch:
+    inputs:
+      instance_number:
+        description: "Instance Number (1-10)"
+        required: true
+        default: "1"
+        type: string
+
+jobs:
+  deploy-rdp:
+    runs-on: windows-latest
+    timeout-minutes: 360
+
+    steps:
+      - name: System Information
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+
+          Write-Host "=== WINDOWS SYSTEM ==="
+          Write-Host "Instance: ${{ inputs.instance_number }}"
+          Write-Host "Runner: $env:RUNNER_NAME"
+
+          Get-ComputerInfo |
+            Select-Object WindowsProductName, WindowsVersion
+
+          Get-CimInstance Win32_Processor |
+            Select-Object Name, NumberOfCores,
+              NumberOfLogicalProcessors
+
+      - name: Install Chrome
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+
+          $url = "https://dl.google.com/chrome/install/latest/chrome_installer.exe"
+          $installer = "$env:TEMP\chrome_installer.exe"
+
+          Invoke-WebRequest -Uri $url -OutFile $installer
+          $process = Start-Process $installer `
+            -ArgumentList "/silent /install" `
+            -Wait -PassThru
+
+          if ($process.ExitCode -ne 0) {
+            throw "Chrome installation failed: $($process.ExitCode)"
+          }
+
+          Remove-Item $installer -Force
+          Write-Host "Chrome installation completed."
+
+      - name: Install 7-Zip
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+
+          $url = "https://www.7-zip.org/a/7z2409-x64.exe"
+          $installer = "$env:TEMP\7zip.exe"
+
+          Invoke-WebRequest -Uri $url -OutFile $installer
+          $process = Start-Process $installer `
+            -ArgumentList "/S" `
+            -Wait -PassThru
+
+          if ($process.ExitCode -ne 0) {
+            throw "7-Zip installation failed: $($process.ExitCode)"
+          }
+
+          Remove-Item $installer -Force
+          Write-Host "7-Zip installation completed."
+
+      - name: Verify Installation
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+
+          Get-Command pwsh
+          Write-Host "Setup completed successfully."
